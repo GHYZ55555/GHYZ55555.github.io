@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>花花</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let particles = [];
+        const flowerColors = [
+            [255, 100, 150],  // 粉红色
+            [255, 50, 50],    // 红色
+            [255, 255, 255],  // 白色
+            [255, 180, 180]   // 浅粉色
+        ];
+        let selectedColor;
+        
+        class Particle {
+            constructor(x, y, baseX, baseY, color) {
+                this.x = x;
+                this.y = y;
+                this.baseX = baseX;
+                this.baseY = baseY;
+                this.size = random(2, 5);
+                this.color = color;
+                this.alpha = random(150, 255);
+                this.vx = random(-0.3, 0.3);
+                this.vy = random(-0.3, 0.3);
+            }
+            
+            update() {
+                // 粒子随机运动
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // 粒子向原始位置回归的力
+                let dx = this.baseX - this.x;
+                let dy = this.baseY - this.y;
+                this.x += dx * 0.03;
+                this.y += dy * 0.03;
+                
+                // 随机改变速度
+                this.vx += random(-0.1, 0.1);
+                this.vy += random(-0.1, 0.1);
+                
+                // 限制速度
+                this.vx = constrain(this.vx, -1, 1);
+                this.vy = constrain(this.vy, -1, 1);
+            }
+            
+            display() {
+                noStroke();
+                fill(this.color[0], this.color[1], this.color[2], this.alpha);
+                circle(this.x, this.y, this.size);
+            }
+        }
+        
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            selectedColor = random(flowerColors);
+            createFlower();
+        }
+        
+        function createFlower() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const flowerSize = min(width, height) * 0.4;
+            
+            // 创建花茎
+            createStem(centerX, centerY + flowerSize * 0.2, flowerSize);
+            
+            // 创建花瓣层
+            for (let layer = 0; layer < 5; layer++) {
+                createPetalLayer(centerX, centerY, layer, flowerSize);
+            }
+            
+            // 创建花蕊中心
+            createFlowerCenter(centerX, centerY, flowerSize * 0.12);
+        }
+        
+        function createPetalLayer(x, y, layer, size) {
+            const petals = 12 + layer * 4;
+            const radius = size * 0.2 + layer * size * 0.08;
+            const petalLength = size * 0.15;
+            
+            for (let i = 0; i < petals; i++) {
+                const angle = TWO_PI / petals * i;
+                createPetal(x, y, angle, radius, petalLength, layer);
+            }
+        }
+        
+        function createPetal(x, y, angle, radius, petalLength, layer) {
+            const baseX = x + cos(angle) * radius;
+            const baseY = y + sin(angle) * radius;
+            
+            // 花瓣颜色略微变化
+            let petalColor = [...selectedColor];
+            petalColor[0] = constrain(petalColor[0] + random(-20, 20), 0, 255);
+            petalColor[1] = constrain(petalColor[1] + random(-20, 20), 0, 255);
+            petalColor[2] = constrain(petalColor[2] + random(-20, 20), 0, 255);
+            
+            // 创建花瓣形状
+            const points = 8;
+            for (let j = 0; j < points; j++) {
+                const t = j / (points - 1);
+                const petalWidth = sin(t * PI) * petalLength * 0.6;
+                const dx = cos(angle) * petalLength * t;
+                const dy = sin(angle) * petalLength * t;
+                
+                // 添加卷曲效果
+                const curl = sin(t * PI * 3) * petalLength * 0.1;
+                const perpAngle = angle + PI/2;
+                const curlX = cos(perpAngle) * curl;
+                const curlY = sin(perpAngle) * curl;
+                
+                const px = baseX + dx + curlX;
+                const py = baseY + dy + curlY;
+                
+                // 每个点添加多个粒子
+                for (let k = -1; k <= 1; k++) {
+                    const offsetAngle = angle + k * 0.2;
+                    const offsetX = cos(offsetAngle + PI/2) * petalWidth * random(0.8, 1.2);
+                    const offsetY = sin(offsetAngle + PI/2) * petalWidth * random(0.8, 1.2);
+                    
+                    // 添加褶皱效果
+                    if (random() > 0.5 && t > 0.5) {
+                        const frillX = px + offsetX * random(0.8, 1.3);
+                        const frillY = py + offsetY * random(0.8, 1.3);
+                        particles.push(new Particle(frillX, frillY, frillX, frillY, petalColor));
+                    }
+                    
+                    particles.push(new Particle(px + offsetX, py + offsetY, px + offsetX, py + offsetY, petalColor));
+                }
+            }
+        }
+        
+        function createFlowerCenter(x, y, radius) {
+            // 花蕊颜色比花瓣深一些
+            const centerColor = [
+                max(10, selectedColor[0] - 30),
+                max(10, selectedColor[1] - 30),
+                max(10, selectedColor[2] - 30)
+            ];
+            
+            for (let i = 0; i < 100; i++) {
+                const angle = random(TWO_PI);
+                const r = random(radius);
+                const px = x + cos(angle) * r;
+                const py = y + sin(angle) * r;
+                particles.push(new Particle(px, py, px, py, centerColor));
+            }
+        }
+        
+        function createStem(x, y, size) {
+            const stemColor = [30, 150, 50];
+            const stemLength = size * 0.8;
+            const stemWidth = size * 0.03;
+            
+            // 主茎
+            for (let i = 0; i < stemLength; i += 5) {
+                const stemY = y + i;
+                const jitter = stemWidth * (1 - i / stemLength);
+                
+                for (let j = 0; j < 3; j++) {
+                    const stemX = x + random(-jitter, jitter);
+                    particles.push(new Particle(stemX, stemY, stemX, stemY, stemColor));
+                }
+            }
+            
+            // 叶子
+            createLeaf(x, y + stemLength * 0.3, -1, size * 0.18);
+            createLeaf(x, y + stemLength * 0.6, 1, size * 0.15);
+        }
+        
+        function createLeaf(x, y, direction, size) {
+            const leafColor = [20, 180, 40];
+            const leafAngle = PI * 0.3 * direction;
+            
+            for (let i = 0; i < 50; i++) {
+                const t = random(1);
+                const leafWidth = sin(t * PI) * size * 0.4;
+                const length = t * size;
+                
+                const px = x + cos(leafAngle) * length;
+                const py = y + sin(leafAngle) * length;
+                
+                const perpX = cos(leafAngle + PI/2) * leafWidth;
+                const perpY = sin(leafAngle + PI/2) * leafWidth;
+                
+                particles.push(new Particle(px + perpX, py + perpY, px + perpX, py + perpY, leafColor));
+                particles.push(new Particle(px - perpX, py - perpY, px - perpX, py - perpY, leafColor));
+            }
+        }
+        
+        function draw() {
+            background(0, 0, 0, 20);
+            
+            for (let p of particles) {
+                p.update();
+                p.display();
+            }
+        }
+        
+        function mousePressed() {
+            particles = [];
+            selectedColor = random(flowerColors);
+            createFlower();
+        }
+        
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            particles = [];
+            createFlower();
+        }
+    </script>
+</body>
+</html>
